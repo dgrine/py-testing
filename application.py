@@ -97,65 +97,44 @@ class Application(Application):
            )
         
     def run(self):
-        try:
+        if 0 != len(self._selection):
             self._print_selection()
-
-            log.info(
-                get_color_string(bcolors.BOLD, "Running ".ljust(80, '='))
-           )
-            self._result = run_test_suite(self._suite)
-
-            self._print_result()
-
-        except KeyboardInterrupt:
-            pass
+            log.info(get_color_string(bcolors.BOLD, "Running ".ljust(80, '=')))
+        self._result = run_test_suite(self._suite)
+        self._print_result()
             
     def _print_selection(self):
-        log.info(
-            get_color_string(bcolors.BOLD, "Unit-tests ".ljust(80, '='))
-           )
+        log.info(get_color_string(bcolors.BOLD, "Unit-tests ".ljust(80, '=')))
 
         for _module_name in self._selection:
-            log.info(
-                get_color_string(bcolors.UNDERLINE, _module_name)
-               )
+            log.info(get_color_string(bcolors.UNDERLINE, _module_name))
             for _class_name in self._selection[_module_name]:
-                log.info(
-                    "  %s" % get_color_string(bcolors.WHITE, _class_name)
-                   )
+                log.info("  %s", get_color_string(bcolors.WHITE, _class_name))
                 for fnc in self._selection[_module_name][_class_name]:
                     log.info("    %s", get_color_string(bcolors.WHITE, fnc))
 
     def _print_result(self):
-        log.info(
-            get_color_string(bcolors.BOLD, "Results ".ljust(80, '='))
-           )
+        if 0 == self._result.testsRun:
+            log.info("No unit-tests available.")
+            return
+        log.info(get_color_string(bcolors.BOLD, "Results ".ljust(80, '=')))
         if self._result.wasSuccessful():
             msg = "STATUS: Success. All unit-tests passed."
             log.info(get_color_string(bcolors.GREEN, msg))
         else:
-            msg = "STATUS: Failed. There were %d failures and %d "\
-                    "unexpected errors.\n" % \
-                    (
-                        len(self._result.failures),
-                        len(self._result.errors)
-                   )
+            msg = "STATUS: Failed. There were {} failures and {} unexpected errors.\n".format(len(self._result.failures), len(self._result.errors))
             log.error(get_color_string(bcolors.RED, msg))
 
             # Failures: test case test signals a failure
             for n, (testcase, traceback) in enumerate(self._result.failures):
                 msg = "- Failure #%d: %s " % ((n + 1), testcase)
-                log.error(
-                    get_color_string(bcolors.RED, msg.ljust(80, '-'))
-                   )
+                log.error(get_color_string(bcolors.RED, msg.ljust(80, '-')))
                 log.error(traceback)
 
             # Errors: test case with unexpected error
             for n, (testcase, traceback) in enumerate(self._result.errors):
                 msg = "- Error #%d: %s " % ((n + 1), testcase)
-                log.critical(
-                    get_color_string(bcolors.RED, msg.ljust(80, '-'))
-                   )
+                log.critical(get_color_string(bcolors.RED, msg.ljust(80, '-')))
                 log.critical(traceback)
 
 app = Application()

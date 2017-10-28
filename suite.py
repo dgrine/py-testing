@@ -26,118 +26,94 @@
 # POSSIBILITY OF SUCH DAMAGE.
 ################################################################################
 from base.application.log import initialize_logging, get_logger
-from base.py.modules import \
-    get_module_name_from_path, load_module, find_classes_in_module
+from base.py.modules import get_module_name_from_path, load_module, find_classes_in_module
 from testing import TestCase
 from functools import wraps
 import os
 import unittest
 
-log = get_logger( 'testdriverapp' )
+log = get_logger('testdriverapp')
 
-def _find_unittest_directories( path ):
-    return [
-        dirpath \
-        for ( dirpath, dirnames, filenames ) in os.walk(
-            path
-            ) \
-        if '_unittests' == os.path.split( dirpath )[ 1 ]
-        ]
+def _find_test_directories(path):
+    return [dirpath for (dirpath, dirnames, filenames) in os.walk(path) if '_unittests' == os.path.split(dirpath)[1]]
 
-def _list_unittest_files( path ):
-    return [
-        os.path.join( path, file ) \
-        for file in os.listdir( path )
-        if file.startswith( 'test' )
-        and file.endswith( '.py' )
-        ]
+def _get_test_files(path):
+    test_files = []
+    for folder, subdir_list, file_list in os.walk(path):
+        test_files.extend([os.path.join(folder, fn) for fn in file_list if fn.endswith('_tests.py')])
+    return test_files
 
-def _get_test_modules( root_path, test_path ):
-    testfolders = [
-        os.path.join( folder, 'tests' )
-        for folder in _find_unittest_directories( test_path )
-        ]
+def _get_test_modules(root_path, test_path):
+    test_folders = [os.path.join(folder, 'tests') for folder in _find_test_directories(test_path)]
     modules = []
-    for testfolder in testfolders:
-        for testfile in _list_unittest_files( testfolder ):
-            module_name = get_module_name_from_path( root_path, testfile )
-            log.noise( "Loading module %s", module_name )
-            module = load_module( module_name )
-            modules.append( module )
+    for test_folder in test_folders:
+        for test_file in _get_test_files(test_folder):
+            module_name = get_module_name_from_path(root_path, test_file)
+            log.noise("Loading module %s", module_name)
+            module = load_module(module_name)
+            modules.append(module)
     return modules
 
-def wrapped_test_function( test_method ):
+def wrapped_test_function(test_method):
     """
     Wraps a test method so that we can log which test case we're running.
     """
-    @wraps( test_method )
-    def wrapper( *args, **kwargs ):
-        log.debug( "Running %s", test_method.__name__ )
-        return test_method( *args, **kwargs )
+    @wraps(test_method)
+    def wrapper(*args, **kwargs):
+        log.debug("Running %s", test_method.__name__)
+        return test_method(*args, **kwargs)
     return wrapper
 
-def build_test_suite( root_path, test_path, \
-    filter_modules, filter_classes, filter_methods ):
-    assert type( root_path ) in ( str, unicode ), \
-        "Expected string type"
-    assert type( test_path ) in ( str, unicode ), \
-        "Expected string type"
-    assert os.path.isdir( root_path ), \
-        "'%s' is not a folder" % root_path
-    assert os.path.isdir( test_path ), \
-        "'%s' is not a folder" % test_path
+def build_test_suite(root_path, test_path, \
+    filter_modules, filter_classes, filter_methods):
+    assert type(root_path) in (str, unicode), "Expected string type"
+    assert type(test_path) in (str, unicode), "Expected string type"
+    assert os.path.isdir(root_path), "'%s' is not a folder" % root_path
+    assert os.path.isdir(test_path), "'%s' is not a folder" % test_path
 
-    test_path = os.path.abspath( test_path )
+    test_path = os.path.abspath(test_path)
     suite = unittest.TestSuite()
     selection = {}  # Dictionary that represents the selection tree
-    for module in _get_test_modules( root_path, test_path):
+    for module in _get_test_modules(root_path, test_path):
         number_of_selected_test_functions_in_module = 0
 
         # Do we include this module?
-        if not filter_modules( module.__name__ ): continue
+        if not filter_modules(module.__name__): continue
 
         # Get the test classes in that module
-        for cls in [ cls for cls in find_classes_in_module(
-            module,
-            filter = lambda name, value: \
-                    issubclass( value, TestCase ) 
-                        and not
-                    TestCase == value
-            )
-            if filter_classes( cls.__name__ )
-            ]:
-
+        test_classes = [
+            cls
+            for cls in find_classes_in_module(module, filter = lambda name, value: issubclass(value, TestCase) and not TestCase == value)
+            if filter_classes(cls.__name__)
+        ]
+        for cls in test_classes:
             # Get the test functions available in that class
-            all_methods = [
-                fnc for fnc in dir( cls ) if fnc.startswith( 'test' )
-                ]
+            all_methods = [fnc for fnc in dir(cls) if fnc.startswith('test')]
 
             # Disable the methods as required
-            # for fnc in disabled_methods: delattr( cls, fnc )
+            # for fnc in disabled_methods: delattr(cls, fnc)
             for fnc in all_methods:
-                if not filter_methods( fnc ):
-                    delattr( cls, fnc )
+                if not filter_methods(fnc):
+                    delattr(cls, fnc)
                 else:
                     # Substitute with a wrapped test function
-                    setattr( cls, fnc, wrapped_test_function( getattr( cls, fnc ) ) )
+                    setattr(cls, fnc, wrapped_test_function(getattr(cls, fnc)))
 
             # Select the test functions
             # If no tests are selected, skip to the next class
-            test_functions = [
-                func for func in dir( cls ) if func.startswith( 'test' )
-                ]
-            if 0  == len( test_functions ): continue
+            test_functions = [func for func in dir(cls) if func.startswith('test')]
+            if 0  == len(test_functions): continue
 
             # List the test functions
-            if not module.__name__ in selection: selection[ module.__name__ ] = {}
-            selection[ module.__name__ ][ cls.__name__ ] = test_functions
+            if not module.__name__ in selection: selection[module.__name__] = {}
+            selection[module.__name__][cls.__name__] = test_functions
 
             # Load the test case and add it to the suite
-            cls_suite = unittest.TestLoader().loadTestsFromTestCase( cls )
-            suite.addTest( cls_suite )
+            cls_suite = unittest.TestLoader().loadTestsFromTestCase(cls)
+            suite.addTest(cls_suite)
     return suite, selection
 
-def run_test_suite( suite ):
+def run_test_suite(suite):
     result = unittest.TestResult()
-    suite.run( result )
+    suite.run(result)
     return result
