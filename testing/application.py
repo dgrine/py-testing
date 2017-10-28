@@ -28,7 +28,7 @@
 from base.application.log import initialize_logging, get_logger
 from base.application.application import Application, arg
 from base.py.modules import this_module_path_relative
-from base.utilities import formatting, get_color_string
+from base.utilities.colors import bcolors, get_color_string
 from testing.suite import build_test_suite, run_test_suite
 import os
 import re
@@ -101,7 +101,7 @@ class Application(Application):
             self._print_selection()
 
             log.info(
-                get_color_string(formatting.BOLD, "Running ".ljust(80, '='))
+                get_color_string(bcolors.BOLD, "Running ".ljust(80, '='))
            )
             self._result = run_test_suite(self._suite)
 
@@ -112,27 +112,27 @@ class Application(Application):
             
     def _print_selection(self):
         log.info(
-            get_color_string(formatting.BOLD, "Unit-tests ".ljust(80, '='))
+            get_color_string(bcolors.BOLD, "Unit-tests ".ljust(80, '='))
            )
 
         for _module_name in self._selection:
             log.info(
-                get_color_string(formatting.UNDERLINE, _module_name)
+                get_color_string(bcolors.UNDERLINE, _module_name)
                )
             for _class_name in self._selection[_module_name]:
                 log.info(
-                    "  %s" % get_color_string(formatting.WHITE, _class_name)
+                    "  %s" % get_color_string(bcolors.WHITE, _class_name)
                    )
                 for fnc in self._selection[_module_name][_class_name]:
-                    log.info("    %s", get_color_string(formatting.WHITE, fnc))
+                    log.info("    %s", get_color_string(bcolors.WHITE, fnc))
 
     def _print_result(self):
         log.info(
-            get_color_string(formatting.BOLD, "Results ".ljust(80, '='))
+            get_color_string(bcolors.BOLD, "Results ".ljust(80, '='))
            )
         if self._result.wasSuccessful():
             msg = "STATUS: Success. All unit-tests passed."
-            log.info(get_color_string(formatting.GREEN, msg))
+            log.info(get_color_string(bcolors.GREEN, msg))
         else:
             msg = "STATUS: Failed. There were %d failures and %d "\
                     "unexpected errors.\n" % \
@@ -140,13 +140,13 @@ class Application(Application):
                         len(self._result.failures),
                         len(self._result.errors)
                    )
-            log.error(get_color_string(formatting.RED, msg))
+            log.error(get_color_string(bcolors.RED, msg))
 
             # Failures: test case test signals a failure
             for n, (testcase, traceback) in enumerate(self._result.failures):
                 msg = "- Failure #%d: %s " % ((n + 1), testcase)
                 log.error(
-                    get_color_string(formatting.RED, msg.ljust(80, '-'))
+                    get_color_string(bcolors.RED, msg.ljust(80, '-'))
                    )
                 log.error(traceback)
 
@@ -154,7 +154,7 @@ class Application(Application):
             for n, (testcase, traceback) in enumerate(self._result.errors):
                 msg = "- Error #%d: %s " % ((n + 1), testcase)
                 log.critical(
-                    get_color_string(formatting.RED, msg.ljust(80, '-'))
+                    get_color_string(bcolors.RED, msg.ljust(80, '-'))
                    )
                 log.critical(traceback)
 
